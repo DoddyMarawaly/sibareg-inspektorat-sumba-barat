@@ -119,6 +119,22 @@ returns text as $$
   select role from public.profiles where id = auth.uid();
 $$ language sql stable security definer;
 
+-- Menghapus kebijakan lama (jika sebelumnya pernah dijalankan) agar
+-- skrip ini aman dijalankan ulang tanpa muncul error "already exists"
+drop policy if exists "Profil terlihat oleh pengguna yang sudah login" on public.profiles;
+drop policy if exists "Pengguna dapat memperbarui profil miliknya sendiri" on public.profiles;
+drop policy if exists "Admin dapat memperbarui profil siapa saja" on public.profiles;
+drop policy if exists "Kategori terlihat oleh pengguna yang sudah login" on public.kategori;
+drop policy if exists "Hanya admin dapat mengelola kategori" on public.kategori;
+drop policy if exists "Regulasi terlihat oleh pengguna yang sudah login" on public.regulasi;
+drop policy if exists "Admin dan sekretariat dapat menambah regulasi" on public.regulasi;
+drop policy if exists "Admin dan sekretariat dapat memperbarui regulasi" on public.regulasi;
+drop policy if exists "Hanya admin dapat menghapus regulasi" on public.regulasi;
+drop policy if exists "Log terlihat oleh pengguna yang sudah login" on public.log_aktivitas;
+drop policy if exists "Pengguna yang login dapat menambah log" on public.log_aktivitas;
+drop policy if exists "Umpan balik terlihat oleh pengguna yang sudah login" on public.umpan_balik;
+drop policy if exists "Pengguna yang login dapat mengirim umpan balik" on public.umpan_balik;
+
 -- ---------- PROFILES ----------
 create policy "Profil terlihat oleh pengguna yang sudah login"
   on public.profiles for select

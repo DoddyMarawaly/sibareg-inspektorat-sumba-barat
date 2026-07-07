@@ -6,6 +6,12 @@
 -- atau OFF jika ingin akses selalu lewat aplikasi/RLS).
 -- =========================================================
 
+-- Menghapus kebijakan lama (jika sebelumnya pernah dijalankan) agar
+-- skrip ini aman dijalankan ulang tanpa muncul error "already exists"
+drop policy if exists "Pengguna login dapat membaca dokumen regulasi" on storage.objects;
+drop policy if exists "Admin dan sekretariat dapat mengunggah dokumen" on storage.objects;
+drop policy if exists "Admin dapat menghapus dokumen" on storage.objects;
+
 -- Izinkan pengguna yang sudah login untuk melihat/mengunduh file
 create policy "Pengguna login dapat membaca dokumen regulasi"
   on storage.objects for select
