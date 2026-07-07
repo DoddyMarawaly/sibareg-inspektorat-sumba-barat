@@ -42,10 +42,34 @@ create table if not exists public.regulasi (
   id uuid primary key default uuid_generate_v4(),
   judul text not null,
   nomor text not null unique,
-  jenis_regulasi text not null check (jenis_regulasi in ('UU', 'PP', 'Permendagri', 'Perbup', 'Surat Edaran')),
+  tingkat text not null default 'Pusat' check (tingkat in ('Pusat', 'Provinsi', 'Kabupaten/Kota', 'Desa')),
+  jenis_regulasi text not null check (jenis_regulasi in (
+    -- Tingkat Pusat
+    'UUD 1945', 'Ketetapan MPR (TAP MPR)', 'Undang-Undang (UU)',
+    'Peraturan Pemerintah Pengganti UU (Perppu)', 'Peraturan Pemerintah (PP)',
+    'Peraturan Presiden (Perpres)', 'Peraturan Menteri (Permen)',
+    'Peraturan Menteri Dalam Negeri (Permendagri)',
+    'Peraturan Menteri Desa PDTT (Permendesa)',
+    'Peraturan Menteri Keuangan (Permenkeu)', 'Keputusan Menteri (Kepmen)',
+    'Peraturan Lembaga Pemerintah Non-Kementerian',
+    'Peraturan Badan Pemeriksa Keuangan (BPK)',
+    'Peraturan/Surat Edaran Kepala LKPP', 'Surat Edaran Menteri',
+    -- Tingkat Provinsi
+    'Peraturan Daerah Provinsi (Perda Provinsi)', 'Peraturan Gubernur (Pergub)',
+    'Keputusan Gubernur', 'Surat Edaran Gubernur',
+    -- Tingkat Kabupaten/Kota
+    'Peraturan Daerah Kabupaten/Kota (Perda Kab/Kota)',
+    'Peraturan Bupati/Wali Kota (Perbup/Perwali)', 'Keputusan Bupati/Wali Kota',
+    'Peraturan Inspektur / Surat Edaran Inspektorat',
+    'Keputusan Kepala Dinas/Badan Daerah',
+    -- Tingkat Desa
+    'Peraturan Desa (Perdes)', 'Peraturan Bersama Kepala Desa',
+    'Peraturan Kepala Desa', 'Keputusan Kepala Desa'
+  )),
+  instansi_penerbit text,
   tahun int not null,
-  jenis_pemeriksaan text check (jenis_pemeriksaan in ('APBDes', 'BUMDes', 'Aset Desa')),
-  status text not null default 'berlaku' check (status in ('berlaku', 'dalam revisi')),
+  jenis_pemeriksaan text check (jenis_pemeriksaan in ('APBDes', 'BUMDes', 'Aset Desa', 'Keuangan Desa Lainnya')),
+  status text not null default 'berlaku' check (status in ('berlaku', 'dalam revisi', 'dicabut/tidak berlaku')),
   tag text,
   file_path text not null,
   status_persetujuan text not null default 'menunggu' check (status_persetujuan in ('menunggu', 'disetujui', 'ditolak')),
@@ -56,7 +80,14 @@ create table if not exists public.regulasi (
 
 create index if not exists idx_regulasi_judul on public.regulasi using gin (to_tsvector('simple', judul));
 create index if not exists idx_regulasi_jenis on public.regulasi (jenis_regulasi);
+create index if not exists idx_regulasi_tingkat on public.regulasi (tingkat);
 create index if not exists idx_regulasi_tahun on public.regulasi (tahun);
+
+-- Fungsi untuk menambah hitungan akses/unduhan setiap kali dokumen dibuka
+create or replace function public.increment_jumlah_akses(regulasi_id uuid)
+returns void as $$
+  update public.regulasi set jumlah_akses = jumlah_akses + 1 where id = regulasi_id;
+$$ language sql security definer;
 
 -- ---------------------------------------------------------
 -- 4. TABEL LOG AKTIVITAS

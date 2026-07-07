@@ -5,9 +5,7 @@ import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import { supabase } from "../../lib/supabaseClient";
 import { useProfile } from "../../lib/useProfile";
-
-const JENIS_REGULASI = ["UU", "PP", "Permendagri", "Perbup", "Surat Edaran"];
-const JENIS_PEMERIKSAAN = ["APBDes", "BUMDes", "Aset Desa"];
+import { TINGKAT_REGULASI, JENIS_REGULASI_BY_TINGKAT, JENIS_PEMERIKSAAN, STATUS_KEBERLAKUAN } from "../../lib/jenisRegulasi";
 
 export default function UnggahDokumenPage() {
   const { loading, profile } = useProfile();
@@ -15,7 +13,9 @@ export default function UnggahDokumenPage() {
   const [form, setForm] = useState({
     judul: "",
     nomor: "",
-    jenis_regulasi: JENIS_REGULASI[0],
+    tingkat: TINGKAT_REGULASI[0],
+    jenis_regulasi: JENIS_REGULASI_BY_TINGKAT[TINGKAT_REGULASI[0]][0],
+    instansi_penerbit: "",
     tahun: "",
     jenis_pemeriksaan: JENIS_PEMERIKSAAN[0],
     status: "berlaku",
@@ -26,6 +26,14 @@ export default function UnggahDokumenPage() {
 
   function updateForm(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleTingkatChange(tingkat) {
+    setForm((f) => ({
+      ...f,
+      tingkat,
+      jenis_regulasi: JENIS_REGULASI_BY_TINGKAT[tingkat][0],
+    }));
   }
 
   async function handleSubmit(e) {
@@ -71,7 +79,9 @@ export default function UnggahDokumenPage() {
     const { error: insertError } = await supabase.from("regulasi").insert({
       judul: form.judul,
       nomor: form.nomor,
+      tingkat: form.tingkat,
       jenis_regulasi: form.jenis_regulasi,
+      instansi_penerbit: form.instansi_penerbit,
       tahun: Number(form.tahun),
       jenis_pemeriksaan: form.jenis_pemeriksaan,
       status: form.status,
@@ -90,11 +100,21 @@ export default function UnggahDokumenPage() {
 
     await supabase.from("log_aktivitas").insert({
       aksi: "unggah",
-      keterangan: `Mengunggah regulasi baru: ${form.judul}`,
+      keterangan: `Mengunggah regulasi baru: ${form.judul} (${form.jenis_regulasi})`,
     });
 
     setMessage({ type: "success", text: "Dokumen berhasil diunggah dan menunggu persetujuan." });
-    setForm({ judul: "", nomor: "", jenis_regulasi: JENIS_REGULASI[0], tahun: "", jenis_pemeriksaan: JENIS_PEMERIKSAAN[0], status: "berlaku", tag: "" });
+    setForm({
+      judul: "",
+      nomor: "",
+      tingkat: TINGKAT_REGULASI[0],
+      jenis_regulasi: JENIS_REGULASI_BY_TINGKAT[TINGKAT_REGULASI[0]][0],
+      instansi_penerbit: "",
+      tahun: "",
+      jenis_pemeriksaan: JENIS_PEMERIKSAAN[0],
+      status: "berlaku",
+      tag: "",
+    });
     setFile(null);
   }
 
@@ -122,36 +142,28 @@ export default function UnggahDokumenPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="md:col-span-2">
                 <label className="text-sm text-gray-600">Judul Regulasi</label>
                 <input
                   required
                   value={form.judul}
                   onChange={(e) => updateForm("judul", e.target.value)}
+                  placeholder="cth. Peraturan Bupati Sumba Barat tentang Pengelolaan Keuangan Desa"
                   className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
+
               <div>
                 <label className="text-sm text-gray-600">Nomor Regulasi</label>
                 <input
                   required
                   value={form.nomor}
                   onChange={(e) => updateForm("nomor", e.target.value)}
+                  placeholder="cth. 8 Tahun 2024"
                   className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="text-sm text-gray-600">Jenis Regulasi</label>
-                <select
-                  value={form.jenis_regulasi}
-                  onChange={(e) => updateForm("jenis_regulasi", e.target.value)}
-                  className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
-                >
-                  {JENIS_REGULASI.map((j) => (
-                    <option key={j}>{j}</option>
-                  ))}
-                </select>
-              </div>
+
               <div>
                 <label className="text-sm text-gray-600">Tahun Terbit</label>
                 <input
@@ -162,6 +174,47 @@ export default function UnggahDokumenPage() {
                   className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
+
+              <div>
+                <label className="text-sm text-gray-600">Tingkat Peraturan</label>
+                <select
+                  value={form.tingkat}
+                  onChange={(e) => handleTingkatChange(e.target.value)}
+                  className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                >
+                  {TINGKAT_REGULASI.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600">Jenis Regulasi</label>
+                <select
+                  value={form.jenis_regulasi}
+                  onChange={(e) => updateForm("jenis_regulasi", e.target.value)}
+                  className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                >
+                  {JENIS_REGULASI_BY_TINGKAT[form.tingkat].map((j) => (
+                    <option key={j} value={j}>
+                      {j}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm text-gray-600">Instansi/Lembaga Penerbit</label>
+                <input
+                  value={form.instansi_penerbit}
+                  onChange={(e) => updateForm("instansi_penerbit", e.target.value)}
+                  placeholder="cth. Kementerian Dalam Negeri / Pemerintah Kabupaten Sumba Barat / Pemerintah Desa..."
+                  className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
               <div>
                 <label className="text-sm text-gray-600">Jenis Pemeriksaan Terkait</label>
                 <select
@@ -174,6 +227,7 @@ export default function UnggahDokumenPage() {
                   ))}
                 </select>
               </div>
+
               <div>
                 <label className="text-sm text-gray-600">Status Keberlakuan</label>
                 <select
@@ -181,10 +235,14 @@ export default function UnggahDokumenPage() {
                   onChange={(e) => updateForm("status", e.target.value)}
                   className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="berlaku">Berlaku</option>
-                  <option value="dalam revisi">Dalam Revisi</option>
+                  {STATUS_KEBERLAKUAN.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </select>
               </div>
+
               <div className="md:col-span-2">
                 <label className="text-sm text-gray-600">Tag Pencarian (pisahkan dengan koma)</label>
                 <input

@@ -37,11 +37,29 @@ sibareg/
 ├─ components/           # Sidebar, Topbar, dll.
 ├─ lib/                  # Koneksi Supabase & hook profil pengguna
 ├─ supabase/
-│  ├─ schema.sql         # Skema tabel + Row Level Security
-│  └─ storage-policy.sql # Kebijakan akses Storage
+│  ├─ schema.sql                          # Skema tabel + Row Level Security (instalasi baru)
+│  ├─ storage-policy.sql                  # Kebijakan akses Storage
+│  └─ migration-jenis-regulasi-lengkap.sql # Migrasi untuk proyek yang sudah berjalan
 ├─ .env.example
 └─ package.json
 ```
+
+## Cakupan Jenis Regulasi
+
+Menu **Unggah Dokumen** dan **Bank Regulasi** mendukung seluruh hierarki
+peraturan perundang-undangan Indonesia, dikelompokkan per tingkat:
+
+- **Pusat** — UUD 1945, TAP MPR, UU, Perppu, PP, Perpres, Permen (termasuk
+  Permendagri, Permendesa, Permenkeu), Kepmen, Peraturan BPK, dll.
+- **Provinsi** — Perda Provinsi, Pergub, Keputusan Gubernur, Surat Edaran Gubernur.
+- **Kabupaten/Kota** — Perda Kab/Kota, Perbup/Perwali, Keputusan Bupati/Wali
+  Kota, Surat Edaran Inspektorat.
+- **Desa** — Perdes, Peraturan Kepala Desa, Keputusan Kepala Desa.
+
+Daftar lengkap dapat dilihat/diubah di `lib/jenisRegulasi.js`. Jika proyek
+Supabase Anda sudah pernah dijalankan dengan skema versi awal (jenis
+regulasi terbatas), jalankan `supabase/migration-jenis-regulasi-lengkap.sql`
+untuk memperbarui database tanpa kehilangan data.
 
 ## Panduan Lengkap
 
