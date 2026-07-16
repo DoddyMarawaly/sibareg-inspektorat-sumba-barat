@@ -70,11 +70,14 @@ create table if not exists public.regulasi (
   tahun int not null,
   jenis_pemeriksaan text check (jenis_pemeriksaan in ('APBDes', 'BUMDes', 'Aset Desa', 'Keuangan Desa Lainnya')),
   status text not null default 'berlaku' check (status in ('berlaku', 'dalam revisi', 'dicabut/tidak berlaku')),
+  catatan_status text,
   tag text,
   file_path text not null,
   status_persetujuan text not null default 'menunggu' check (status_persetujuan in ('menunggu', 'disetujui', 'ditolak')),
   jumlah_akses int not null default 0,
   diunggah_oleh uuid references public.profiles (id),
+  diperbarui_oleh uuid references public.profiles (id),
+  updated_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -160,6 +163,7 @@ drop policy if exists "Hanya admin dapat mengelola kategori" on public.kategori;
 drop policy if exists "Regulasi terlihat oleh pengguna yang sudah login" on public.regulasi;
 drop policy if exists "Admin dan sekretariat dapat menambah regulasi" on public.regulasi;
 drop policy if exists "Admin dan sekretariat dapat memperbarui regulasi" on public.regulasi;
+drop policy if exists "Hanya admin dapat memperbarui regulasi" on public.regulasi;
 drop policy if exists "Hanya admin dapat menghapus regulasi" on public.regulasi;
 drop policy if exists "Log terlihat oleh pengguna yang sudah login" on public.log_aktivitas;
 drop policy if exists "Pengguna yang login dapat menambah log" on public.log_aktivitas;
@@ -198,9 +202,12 @@ create policy "Admin dan sekretariat dapat menambah regulasi"
   on public.regulasi for insert
   with check (public.current_role_name() in ('admin', 'sekretariat'));
 
-create policy "Admin dan sekretariat dapat memperbarui regulasi"
+-- Hanya Admin Utama yang berwenang mengubah data regulasi, termasuk
+-- menandai dokumen sudah tidak berlaku/dicabut (menu Edit Status).
+create policy "Hanya admin dapat memperbarui regulasi"
   on public.regulasi for update
-  using (public.current_role_name() in ('admin', 'sekretariat'));
+  using (public.current_role_name() = 'admin')
+  with check (public.current_role_name() = 'admin');
 
 create policy "Hanya admin dapat menghapus regulasi"
   on public.regulasi for delete

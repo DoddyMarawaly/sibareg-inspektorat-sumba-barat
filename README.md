@@ -61,6 +61,18 @@ Supabase Anda sudah pernah dijalankan dengan skema versi awal (jenis
 regulasi terbatas), jalankan `supabase/migration-jenis-regulasi-lengkap.sql`
 untuk memperbarui database tanpa kehilangan data.
 
+## Menu Edit Status (khusus Admin Utama)
+
+Di halaman **Bank Regulasi**, akun dengan peran **Admin** memiliki tombol
+**Edit** pada setiap baris hasil pencarian untuk mengubah status keberlakuan
+dokumen (mis. menandai "dicabut/tidak berlaku") beserta catatan alasannya.
+Fitur ini diberlakukan baik di sisi tampilan maupun di database (Row Level
+Security) — hanya Admin yang diizinkan memperbarui data regulasi.
+
+Jika proyek Supabase Anda sudah pernah dijalankan sebelumnya, jalankan
+`supabase/migration-edit-status-admin.sql` agar kolom pendukung (`catatan_status`,
+`diperbarui_oleh`, `updated_at`) tersedia dan kebijakan akses diperbarui.
+
 ## Panduan Lengkap
 
 Lihat dokumen **Panduan_Pembuatan_Aplikasi_SIBAREG.docx** yang menyertai

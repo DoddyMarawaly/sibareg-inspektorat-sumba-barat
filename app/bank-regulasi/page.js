@@ -18,6 +18,15 @@ export default function BankRegulasiPage() {
   const [hasil, setHasil] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
 
+  // State untuk modal "Edit Status" (khusus Admin Utama)
+  const [editTarget, setEditTarget] = useState(null); // baris regulasi yang sedang diedit
+  const [editStatus, setEditStatus] = useState("berlaku");
+  const [editCatatan, setEditCatatan] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const isAdminUtama = profile?.role === "admin";
+
   // Opsi jenis regulasi mengikuti tingkat yang dipilih (atau semua jika "Semua")
   const opsiJenisRegulasi =
     tingkat === "Semua"
@@ -80,6 +89,59 @@ export default function BankRegulasiPage() {
     if (regulasiId) {
       await supabase.rpc("increment_jumlah_akses", { regulasi_id: regulasiId }).catch(() => {});
     }
+  }
+
+  function bukaEditStatus(regulasi) {
+    setEditTarget(regulasi);
+    setEditStatus(regulasi.status);
+    setEditCatatan(regulasi.catatan_status || "");
+    setEditError("");
+  }
+
+  function tutupEditStatus() {
+    setEditTarget(null);
+    setEditError("");
+  }
+
+  async function simpanEditStatus(e) {
+    e.preventDefault();
+    if (!editTarget) return;
+    setSavingEdit(true);
+    setEditError("");
+
+    const { data, error } = await supabase
+      .from("regulasi")
+      .update({
+        status: editStatus,
+        catatan_status: editCatatan || null,
+        diperbarui_oleh: profile?.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editTarget.id)
+      .select()
+      .single();
+
+    setSavingEdit(false);
+
+    if (error) {
+      setEditError(
+        `Gagal menyimpan perubahan: ${error.message}. Pastikan akun Anda berperan Admin dan migrasi database ` +
+          "'migration-edit-status-admin.sql' sudah dijalankan."
+      );
+      return;
+    }
+
+    // Perbarui data di tabel hasil pencarian tanpa perlu memuat ulang dari server
+    setHasil((list) => list.map((r) => (r.id === editTarget.id ? { ...r, ...data } : r)));
+
+    await supabase.from("log_aktivitas").insert({
+      aksi: "ubah_status",
+      keterangan: `Mengubah status regulasi "${editTarget.judul}" menjadi "${editStatus}"${
+        editCatatan ? ` — Catatan: ${editCatatan}` : ""
+      }`,
+    });
+
+    setEditTarget(null);
   }
 
   if (loading) return null;
@@ -220,14 +282,28 @@ export default function BankRegulasiPage() {
                         >
                           {r.status}
                         </span>
+                        {r.catatan_status && (
+                          <p className="text-[11px] text-gray-400 mt-1 max-w-[180px]">{r.catatan_status}</p>
+                        )}
                       </td>
                       <td className="py-2 pr-3">
-                        <button
-                          onClick={() => unduhDokumen(r.file_path, r.judul, r.id)}
-                          className="text-sibareg-blue hover:underline"
-                        >
-                          Lihat / Unduh
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => unduhDokumen(r.file_path, r.judul, r.id)}
+                            className="text-sibareg-blue hover:underline"
+                          >
+                            Lihat / Unduh
+                          </button>
+                          {isAdminUtama && (
+                            <button
+                              onClick={() => bukaEditStatus(r)}
+                              className="text-sibareg-gold hover:underline"
+                              title="Ubah status keberlakuan (khusus Admin Utama)"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -243,6 +319,65 @@ export default function BankRegulasiPage() {
             </div>
           </section>
         </main>
+
+        {/* Modal Edit Status Regulasi — khusus Admin Utama */}
+        {editTarget && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+              <h3 className="font-semibold text-sibareg-navy text-lg">Edit Status Regulasi</h3>
+              <p className="text-sm text-gray-500 mt-1 mb-4">{editTarget.judul}</p>
+
+              <form onSubmit={simpanEditStatus} className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-600">Status Keberlakuan</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                  >
+                    {STATUS_KEBERLAKUAN.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600">
+                    Catatan / Alasan Perubahan Status <span className="text-gray-400">(opsional)</span>
+                  </label>
+                  <textarea
+                    value={editCatatan}
+                    onChange={(e) => setEditCatatan(e.target.value)}
+                    rows={4}
+                    placeholder="cth. Dicabut karena digantikan oleh Peraturan Bupati Nomor 12 Tahun 2026"
+                    className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+
+                {editError && <p className="text-sm text-red-600">{editError}</p>}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={tutupEditStatus}
+                    className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="px-5 py-2 text-sm rounded-lg bg-sibareg-blue text-white font-medium hover:bg-sibareg-navy disabled:opacity-60"
+                  >
+                    {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
