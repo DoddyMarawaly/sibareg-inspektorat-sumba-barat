@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
@@ -25,10 +26,22 @@ export default function Sidebar({ role = "auditor" }) {
 
   return (
     <aside className="w-64 min-h-screen bg-sibareg-navy text-white flex flex-col">
-      <div className="px-5 py-6 border-b border-white/10">
-        <p className="text-lg font-bold tracking-wide">SIBAREG</p>
-        <p className="text-xs text-white/60">Bank Regulasi Digital Terintegrasi</p>
-        <p className="text-[11px] text-white/40 mt-1">Inspektorat Kab. Sumba Barat</p>
+      <div className="px-5 py-6 border-b border-white/10 flex items-center gap-3">
+        <div className="w-11 h-11 shrink-0 rounded-full bg-white/10 backdrop-blur-sm ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
+          <Image
+            src="/logo-sumba-barat.jpeg"
+            alt="Logo Kabupaten Sumba Barat"
+            width={44}
+            height={44}
+            className="object-contain w-9 h-9"
+            priority
+          />
+        </div>
+        <div>
+          <p className="text-lg font-bold tracking-wide leading-tight">SIBAREG</p>
+          <p className="text-xs text-white/60">Bank Regulasi Digital Terintegrasi</p>
+          <p className="text-[11px] text-white/40 mt-1">Inspektorat Kab. Sumba Barat</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">

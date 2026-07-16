@@ -7,6 +7,26 @@ import { supabase } from "../../lib/supabaseClient";
 import { useProfile } from "../../lib/useProfile";
 import { TINGKAT_REGULASI, JENIS_REGULASI_BY_TINGKAT, JENIS_PEMERIKSAAN, STATUS_KEBERLAKUAN } from "../../lib/jenisRegulasi";
 
+// Batas maksimum ukuran berkas yang diizinkan untuk diunggah (100 MB).
+// Catatan: batas ini juga harus diselaraskan dengan pengaturan bucket
+// Supabase Storage "dokumen-regulasi" (file_size_limit). Lihat
+// supabase/storage-policy.sql bagian "PENGATURAN BUCKET" untuk perintah SQL-nya.
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+const MAX_FILE_SIZE_LABEL = "100 MB";
+
+function isPdfFile(f) {
+  if (!f) return false;
+  const validMime = ["application/pdf", "application/x-pdf", "application/acrobat", "applications/vnd.pdf"];
+  const nameLower = (f.name || "").toLowerCase();
+  return validMime.includes(f.type) || nameLower.endsWith(".pdf");
+}
+
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
+}
+
 export default function UnggahDokumenPage() {
   const { loading, profile } = useProfile();
   const [file, setFile] = useState(null);
@@ -44,22 +64,40 @@ export default function UnggahDokumenPage() {
       setMessage({ type: "error", text: "Silakan pilih berkas PDF terlebih dahulu." });
       return;
     }
-    if (file.type !== "application/pdf") {
-      setMessage({ type: "error", text: "Berkas harus berformat PDF." });
+    if (!isPdfFile(file)) {
+      setMessage({ type: "error", text: "Berkas harus berformat PDF (.pdf)." });
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setMessage({
+        type: "error",
+        text: `Ukuran berkas (${formatBytes(file.size)}) melebihi batas maksimum ${MAX_FILE_SIZE_LABEL}.`,
+      });
       return;
     }
 
     setSubmitting(true);
 
-    const filePath = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    // Nama berkas dibersihkan dari karakter yang tidak aman untuk path Storage
+    const safeName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9.\-_]/g, "");
+    const filePath = `${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("dokumen-regulasi")
-      .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: "application/pdf",
+      });
 
     if (uploadError) {
       setSubmitting(false);
-      setMessage({ type: "error", text: `Gagal mengunggah berkas: ${uploadError.message}` });
+      const hint = /size|besar|payload|exceed/i.test(uploadError.message)
+        ? " Pastikan pengaturan bucket Storage 'dokumen-regulasi' (file_size_limit) sudah diatur ke minimal 100MB."
+        : /mime|type|format/i.test(uploadError.message)
+        ? " Pastikan bucket Storage 'dokumen-regulasi' mengizinkan tipe berkas application/pdf."
+        : "";
+      setMessage({ type: "error", text: `Gagal mengunggah berkas: ${uploadError.message}.${hint}` });
       return;
     }
 
@@ -133,11 +171,33 @@ export default function UnggahDokumenPage() {
               <div className="mt-1 border-2 border-dashed rounded-lg p-6 text-center text-gray-400">
                 <input
                   type="file"
-                  accept="application/pdf"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  accept="application/pdf,.pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setMessage(null);
+                    if (f && !isPdfFile(f)) {
+                      setFile(null);
+                      setMessage({ type: "error", text: "Berkas harus berformat PDF (.pdf)." });
+                      return;
+                    }
+                    if (f && f.size > MAX_FILE_SIZE_BYTES) {
+                      setFile(null);
+                      setMessage({
+                        type: "error",
+                        text: `Ukuran berkas (${formatBytes(f.size)}) melebihi batas maksimum ${MAX_FILE_SIZE_LABEL}.`,
+                      });
+                      return;
+                    }
+                    setFile(f);
+                  }}
                   className="w-full text-sm"
                 />
-                {file && <p className="mt-2 text-sm text-gray-600">Berkas dipilih: {file.name}</p>}
+                <p className="mt-2 text-xs text-gray-400">Format PDF, ukuran maksimum {MAX_FILE_SIZE_LABEL}.</p>
+                {file && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Berkas dipilih: {file.name} ({formatBytes(file.size)})
+                  </p>
+                )}
               </div>
             </div>
 
