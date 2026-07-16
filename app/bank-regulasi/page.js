@@ -57,8 +57,20 @@ export default function BankRegulasiPage() {
 
   async function unduhDokumen(fileUrl, judul, regulasiId) {
     if (!fileUrl) return;
-    const { data } = supabase.storage.from("dokumen-regulasi").getPublicUrl(fileUrl);
-    window.open(data.publicUrl, "_blank");
+
+    const { data, error } = await supabase.storage
+      .from("dokumen-regulasi")
+      .createSignedUrl(fileUrl, 300); // tautan berlaku 5 menit
+
+    if (error || !data?.signedUrl) {
+      alert(
+        `Gagal membuka dokumen: ${error?.message || "berkas tidak ditemukan di Storage."}\n\n` +
+          "Pastikan bucket 'dokumen-regulasi' dan kebijakan Storage (storage-policy.sql) sudah diterapkan dengan benar di Supabase."
+      );
+      return;
+    }
+
+    window.open(data.signedUrl, "_blank");
 
     await supabase.from("log_aktivitas").insert({
       aksi: "unduh",
